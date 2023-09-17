@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding-bottom: 3rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+      }
+
+      #form {
+        background: rgba(0, 0, 0, 0.15);
+        padding: 0.25rem;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        height: 3rem;
+        box-sizing: border-box;
+        backdrop-filter: blur(10px);
+      }
+      #input {
+        border: none;
+        padding: 0 1rem;
+        flex-grow: 1;
+        border-radius: 2rem;
+        margin: 0.25rem;
+      }
+      #input:focus {
+        outline: none;
+      }
+      #form > button {
+        background: #333;
+        border: none;
+        padding: 0 1rem;
+        margin: 0.25rem;
+        border-radius: 3px;
+        outline: none;
+        color: #fff;
+      }
+
+      #messages {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+      }
+      #messages > li {
+        padding: 0.5rem 1rem;
+      }
+      #messages > li:nth-child(odd) {
+        background: #efefef;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Welcome to Socket chat</h2>
+    <div id="nicknameWrapper">
+      <input id="nicknameInput" type="text" placeholder="Enter your nickname" />
+      <button id="nicknameBtn">Set</button>
+    </div>
+    <div id="mainWrapper" style="display: none">
+      <ul id="messages"></ul>
+      <form id="form" action="">
+        <input id="input" autocomplete="off" /><button>Send</button>
+      </form>
+      <p id="typing"></p>
+      <h3>Online Users</h3>
+      <ul id="onlineusers"></ul>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+      var socket = io();
+      var typing = false;
+      var timeout = undefined;
+      socket.on("new connection", (msg) => {
+        $("#messages").append($("<li>").text(msg));
+      });
+
+      socket.on("chat message", function (msg) {
+        console.log("Received message: " + msg);
+        $("#messages").append($("<li>").text(msg));
+        updateScroll();
+      });
+
+      socket.on("userlist", function (userlist) {
+        $("#onlineusers").empty();
+        userlist.forEach(function (username) {
+          $("#onlineusers").append($("<li>").text(username));
+        });
+      });
+
+      socket.on("typing", function (data) {
+        $("#typing").text(data.nickname + " is typing");
+      });
+
+      socket.on("stop typing", function (data) {
+        $("#typing").text("");
+      });
+
+      // event listeners...
+      $("#nicknameBtn").click(function () {
+        if ($("#nicknameInput").val()) {
+          socket.nickname = $("#nicknameInput").val();
+          socket.emit("new user", socket.nickname);
+          $("#nicknameWrapper").hide();
+          $("#mainWrapper").show();
+        }
+      });
+
+      $("#input").keydown(function () {
+        if (event.which != 13) {
+          typing = true;
+          socket.emit("typing", { nickname: socket.nickname });
+          clearTimeout(timeout);
+          timeout = setTimeout(typingTimeout, 2000);
+        } else {
+          clearTimeout(timeout);
+          typingTimeout();
+        }
+      });
+
+      $("#form").submit(function (e) {
+    e.preventDefault();
+    if ($("#input").val()) {
+        const msgToSend = socket.nickname + ": " + $("#input").val();
+        socket.emit("chat message", msgToSend);
+        $("#messages").append($("<li>").text(msgToSend));  // Add this line
+        $("#input").val("");
+    }
+    });
+    </script>
+  </body>
+</html>
